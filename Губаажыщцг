@@ -172,6 +172,10 @@ track(gui.Destroying:Connect(function()
                 RunService:UnbindFromRenderStep("CamLockCamera")
         end)
 
+        pcall(function()
+                RunService:UnbindFromRenderStep("MainPanelMove")
+        end)
+
         if cleanupCamLock then
                 pcall(cleanupCamLock)
         end
@@ -989,8 +993,21 @@ track(stickZone.InputBegan:Connect(function(input)
                 releaseStick()
         end
 
-        if editMode or stickInput or not isPointer(input) or coveredByUi(input) then
+        if editMode or not isPointer(input) or coveredByUi(input) then
                 return
+        end
+
+        if stickInput then
+                local ringCenter = stickRing.AbsolutePosition + stickRing.AbsoluteSize / 2
+                local half = stickSize * STICK_ZONE_SCALE / 2
+                local at = guiPoint(input)
+
+                if input == stickInput or math.abs(at.X - ringCenter.X) > half or math.abs(at.Y - ringCenter.Y) > half then
+                        return
+                end
+
+                releaseStick(true)
+                showToast("Джойстик восстановлен")
         end
 
         stickInput = input
@@ -1014,8 +1031,16 @@ track(jumpButton.InputBegan:Connect(function(input)
                 releaseJump()
         end
 
-        if editMode or jumpInput or not isPointer(input) or coveredByUi(input) then
+        if editMode or not isPointer(input) or coveredByUi(input) then
                 return
+        end
+
+        if jumpInput then
+                if input == jumpInput then
+                        return
+                end
+
+                releaseJump()
         end
 
         jumpInput = input
@@ -1037,6 +1062,21 @@ track(UserInputService.InputEnded:Connect(function(input)
         if jumpInput and endsDrag(input, jumpInput) then
                 releaseJump()
         end
+end))
+
+track(UserInputService.WindowFocusReleased:Connect(function()
+        releaseStick(true)
+        releaseJump()
+end))
+
+track(UserInputService.WindowFocused:Connect(function()
+        releaseStick(true)
+        releaseJump()
+end))
+
+track(game:GetService("GuiService").MenuOpened:Connect(function()
+        releaseStick(true)
+        releaseJump()
 end))
 
 local shiftLockOn = SHIFT_LOCK_DEFAULT_ON
@@ -2043,7 +2083,20 @@ do
         end
 end
 
-track(RunService.RenderStepped:Connect(function(dt)
+pcall(function()
+        RunService:UnbindFromRenderStep("MainPanelMove")
+end)
+
+RunService:BindToRenderStep("MainPanelMove", Enum.RenderPriority.Input.Value + 1, function(dt)
+        if stickInput and not isLive(stickInput) then
+                releaseStick()
+                showToast("Джойстик восстановлен")
+        end
+
+        if jumpInput and not isLive(jumpInput) then
+                releaseJump()
+        end
+
         if not (stickInput or needStopMove or jumpHeld or needStopJump) then
                 return
         end
@@ -2071,7 +2124,7 @@ track(RunService.RenderStepped:Connect(function(dt)
         if not jumpHeld then
                 needStopJump = false
         end
-end))
+end)
 
 makeDraggable(stickRing, stickRing, {
         canStart = function(input)
@@ -2216,6 +2269,20 @@ if UserInputService.TouchEnabled then
                 end
         end)
 end
+
+task.spawn(function()
+        while gui.Parent do
+                task.wait(1)
+
+                if controls and controlsDisabled then
+                        pcall(function()
+                                if controls.controlsEnabled then
+                                        controls:Disable()
+                                end
+                        end)
+                end
+        end
+end)
 
 local activeTweens = {}
 
