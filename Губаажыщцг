@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -100,6 +101,7 @@ local cleanupCamLock = nil
 
 local controls = nil
 local controlsDisabled = false
+local savedTouchControls = nil
 
 local isOpen = false
 local menuAlive = true
@@ -185,6 +187,15 @@ track(gui.Destroying:Connect(function()
                         controls:Enable()
                 end)
                 controlsDisabled = false
+        end
+
+        if savedTouchControls ~= nil then
+                local restore = savedTouchControls
+                savedTouchControls = nil
+
+                pcall(function()
+                        GuiService.TouchControlsEnabled = restore
+                end)
         end
 end))
 
@@ -1074,7 +1085,7 @@ track(UserInputService.WindowFocused:Connect(function()
         releaseJump()
 end))
 
-track(game:GetService("GuiService").MenuOpened:Connect(function()
+track(GuiService.MenuOpened:Connect(function()
         releaseStick(true)
         releaseJump()
 end))
@@ -2246,6 +2257,20 @@ task.delay(3, function()
 end)
 
 if UserInputService.TouchEnabled then
+        savedTouchControls = GuiService.TouchControlsEnabled
+
+        pcall(function()
+                GuiService.TouchControlsEnabled = false
+        end)
+
+        track(GuiService:GetPropertyChangedSignal("TouchControlsEnabled"):Connect(function()
+                if savedTouchControls ~= nil and GuiService.TouchControlsEnabled then
+                        pcall(function()
+                                GuiService.TouchControlsEnabled = false
+                        end)
+                end
+        end))
+
         task.spawn(function()
                 local ok, result = pcall(function()
                         local playerScripts = player:WaitForChild("PlayerScripts", 15)
@@ -2273,6 +2298,12 @@ end
 task.spawn(function()
         while gui.Parent do
                 task.wait(1)
+
+                if savedTouchControls ~= nil and GuiService.TouchControlsEnabled then
+                        pcall(function()
+                                GuiService.TouchControlsEnabled = false
+                        end)
+                end
 
                 if controls and controlsDisabled then
                         pcall(function()
