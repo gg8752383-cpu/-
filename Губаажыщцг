@@ -1018,7 +1018,6 @@ track(stickZone.InputBegan:Connect(function(input)
                 end
 
                 releaseStick(true)
-                showToast("Джойстик восстановлен")
         end
 
         stickInput = input
@@ -2101,7 +2100,6 @@ end)
 RunService:BindToRenderStep("MainPanelMove", Enum.RenderPriority.Input.Value + 1, function(dt)
         if stickInput and not isLive(stickInput) then
                 releaseStick()
-                showToast("Джойстик восстановлен")
         end
 
         if jumpInput and not isLive(jumpInput) then
